@@ -1,0 +1,38 @@
+# File: .github/workflows/push-to-apps-script.yml
+# Version: v3.1.1
+# Revision date: 2026-10-28
+# Changes (last 3 update days):
+#   2026-10-28 — New. When Apps Script files change on main, push them to the
+#                Apps Script project (the /dev version). Deployments stay manual.
+name: Push to Apps Script
+
+on:
+  push:
+    branches: [main]
+    paths: ['**.gs', '**.html', 'appsscript.json', '.clasp.json', '.claspignore']
+  workflow_dispatch:        # also adds a "Run workflow" button on the Actions tab
+
+concurrency:
+  group: apps-script-sync   # never run a push and a pull at the same time
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@2.4.2
+
+      - name: Sign in to Apps Script
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: Push files to the Apps Script project
+        run: clasp push --force
