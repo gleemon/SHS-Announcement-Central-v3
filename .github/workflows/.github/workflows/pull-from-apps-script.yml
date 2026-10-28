@@ -1,0 +1,51 @@
+# File: .github/workflows/pull-from-apps-script.yml
+# Version: v3.1.1
+# Revision date: 2026-10-28
+# Changes (last 3 update days):
+#   2026-10-28 — New. Manual button: copy the Apps Script project into the
+#                repo (use after editing in the browser editor, and before
+#                the very first push).
+name: Pull from Apps Script
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apps-script-sync
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@2.4.2
+
+      - name: Sign in to Apps Script
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: Pull files from the Apps Script project
+        run: clasp pull
+
+      - name: Commit any changes
+        run: |
+          git config user.name "Apps Script sync"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A -- '*.gs' '*.html' appsscript.json
+          if git diff --cached --quiet; then
+            echo "Already in sync. Nothing to commit."
+          else
+            git commit -m "Pull from Apps Script editor"
+            git push
+          fi
